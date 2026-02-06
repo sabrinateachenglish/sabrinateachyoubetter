@@ -4,16 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Sabrina 英文小教室</title>
-    <!-- 載入必要套件 CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 載入 Framer Motion CDN -->
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
     
     <style>
-        /* 採用優雅的 Playfair Display 與 Inter 字體組合 */
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&display=swap');
         
         #sabrina-app-root {
@@ -28,13 +25,11 @@
 
         body { 
             margin: 0; 
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background-color: transparent; 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8f8f8; 
         }
 
         .font-serif { font-family: 'Playfair Display', serif; }
-        
-        /* 隱藏捲軸但保持滾動功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
@@ -44,42 +39,31 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* 單字卡 3D 翻轉效果 */
         .card-container { perspective: 1000px; }
         .card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s;
-            transform-style: preserve-3d;
-            cursor: pointer;
+            position: relative; width: 100%; height: 100%;
+            transition: transform 0.6s; transform-style: preserve-3d; cursor: pointer;
         }
         .card-inner.is-flipped { transform: rotateY(180deg); }
         .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-radius: 2.5rem;
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; border-radius: 2.5rem;
         }
         .card-back { transform: rotateY(180deg); }
 
-        /* 表單與輸入框樣式 */
         input, textarea, select {
-            border: 1px solid #C9ADA755;
-            background: white;
-            padding: 12px 16px;
-            border-radius: 12px;
-            font-size: 14px;
-            outline: none;
-            width: 100%;
-            transition: border-color 0.2s;
+            border: 1px solid #C9ADA755; background: white; padding: 12px 16px;
+            border-radius: 12px; font-size: 14px; outline: none; width: 100%;
         }
-        input:focus, textarea:focus { border-color: #976666; }
+        input:focus { border-color: #976666; }
+
+        /* 通知紅點 */
+        .notification-dot {
+            position: absolute; top: -2px; right: -2px;
+            width: 8px; height: 8px; background-color: #ff6b6b;
+            border-radius: 50%; border: 2px solid #976666;
+        }
     </style>
 </head>
 <body>
@@ -89,7 +73,17 @@
         const { useState, useEffect, useMemo } = React;
         const { motion, AnimatePresence } = window.Motion;
 
-        // --- SVG 圖示元件 (穩定性優先) ---
+        // --- 預設成員名單 ---
+        const USERS_DB = {
+            "sabrinateachenglish@gmail.com": { name: "Sabrina", role: "teacher" },
+            "minakuo911@gmail.com": { name: "Mina Kuo", role: "student" },
+            "ss10139027@gmail.com": { name: "Sammy", role: "student" },
+            "41i806@ms.mingdao.edu.tw": { name: "Angus Lee", role: "student" },
+            "s8022883et@gmail.com": { name: "Peggy", role: "student" },
+            "lmline0916@gmail.com": { name: "鈴梅", role: "student" },
+            "ccc820622@yahoo.com.tw": { name: "信汝", role: "student" }
+        };
+
         const Icon = ({ name, size = 20, className = "" }) => {
             const icons = {
                 Calendar: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>,
@@ -98,61 +92,64 @@
                 Mic2: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/></svg>,
                 User: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
                 Plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>,
-                History: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>,
-                Trash2: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
-                Brain: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9.5 2A5 5 0 0 1 12 7v5H7a5 5 0 0 1 2.5-9.5Z"/><path d="M14.5 2A5 5 0 0 0 12 7v5h5a5 5 0 0 0-2.5-9.5Z"/><path d="M9.5 22A5 5 0 0 0 12 17v-5H7a5 5 0 0 0 2.5 9.5Z"/><path d="M14.5 22A5 5 0 0 1 12 17v-5h5a5 5 0 0 1-2.5 9.5Z"/></svg>,
-                ArrowLeft: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15 18-6-6 6-6"/></svg>,
-                ArrowRight: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m9 18 6-6-6-6"/></svg>,
-                Check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="20 6 9 17 4 12"/></svg>,
-                Alert: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
-                Coffee: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></svg>,
+                Bell: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
+                LogOut: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>,
                 Shield: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             };
             return icons[name] || null;
         };
 
         const App = () => {
+            const [currentUser, setCurrentUser] = useState(null);
+            const [loginEmail, setLoginEmail] = useState("");
             const [activeTab, setActiveTab] = useState('calendar');
-            const [role, setRole] = useState('student');
             const [activeWeek, setActiveWeek] = useState(0);
             const [selectedDateIdx, setSelectedDateIdx] = useState(0);
-            const [selectedSlot, setSelectedSlot] = useState(null);
             const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+            const [selectedSlot, setSelectedSlot] = useState(null);
             const [myBookings, setMyBookings] = useState([]);
-            const [cancelTarget, setCancelTarget] = useState(null);
             const [isFlipped, setIsFlipped] = useState(false);
             const [isRecording, setIsRecording] = useState(false);
             const [cardIdx, setCardIdx] = useState(0);
             const [isAddingRecord, setIsAddingRecord] = useState(false);
             const [isUpdatingContent, setIsUpdatingContent] = useState(null);
+            
+            // 通知狀態
+            const [hasNewMaterial, setHasNewMaterial] = useState(false);
+            const [teacherNotifications, setTeacherNotifications] = useState([]);
 
-            // 教材內容
-            const [materialData, setMaterialData] = useState([
-                { term: "bring down the house", meaning: "博得滿堂彩／贏得全場喝采", dialog: "A: How was her performance last night?\nB: Amazing. She completely brought down the house." },
-                { term: "bring forth", meaning: "生產；產生（正式、抽象用法多）", dialog: "A: What did the discussion achieve in the end?\nB: It brought forth several innovative ideas." },
-                { term: "bring forward", meaning: "提前；提出（計畫、日期、提案）", dialog: "A: Can we delay the meeting until next week?\nB: Actually, we need to bring it forward to Friday." },
-                { term: "bring in", meaning: "帶來（收入、利益）；引進", dialog: "A: Did the new campaign work?\nB: Yes, it brought in a lot of new customers." },
-                { term: "bring up", meaning: "養育；教育；提出（話題、問題）", dialog: "A: Why did he mention that issue again?\nB: He brought it up because it hasn’t been resolved." }
-            ]);
+            // 登入邏輯
+            const handleLogin = (e) => {
+                e.preventDefault();
+                const user = USERS_DB[loginEmail.trim().toLowerCase()];
+                if (user) {
+                    setCurrentUser({ ...user, email: loginEmail });
+                } else {
+                    alert("此信箱尚未在名單中，請聯繫 Sabrina 老師。");
+                }
+            };
 
-            // 單字卡內容
-            const [flashcards, setFlashcards] = useState([
-                { en: "scroll through social media", cn: "刷社交媒體" },
-                { en: "browse Instagram / TikTok for fun", cn: "隨便刷 IG 或抖音打發時間" },
-                { en: "stay connected with friends", cn: "與朋友保持聯繫" },
-                { en: "post updates / stories / photos", cn: "發動態／限時／照片" },
-                { en: "like and comment on posts", cn: "給貼文點讚和留言" },
-                { en: "addictive", cn: "上癮的" },
-                { en: "time-consuming", cn: "很耗時間的" },
-                { en: "feel anxious about missing out (FOMO)", cn: "擔心錯過（錯失恐懼）" }
-            ]);
+            // 教材上傳 -> 通知學生
+            const handleUploadConfirm = () => {
+                setIsUpdatingContent(null);
+                setHasNewMaterial(true); // 模擬所有學生都會看到紅點
+                alert("教材已發布！學生端將收到複習通知。");
+            };
 
-            // 上課記錄資料
-            const [classRecords, setClassRecords] = useState([
-                { id: 1, date: "2024-05-15", time: "13:30 - 15:00", progress: "Bring 系列片語 L1", score: "95", nextExam: "L1 單字與例句", remarks: "口說發音有顯著進步，繼續保持！" }
-            ]);
+            // 學生錄音完成 -> 通知老師
+            const handleRecordFinish = () => {
+                setIsRecording(false);
+                const newNote = { id: Date.now(), msg: `👤 ${currentUser.name} 已上傳口說作業`, time: "剛剛" };
+                setTeacherNotifications([newNote, ...teacherNotifications]);
+                alert("錄音已上傳！Sabrina 老師會收到通知。");
+            };
 
-            // 預約日曆邏輯 (固定週一至週日)
+            // --- 學生資料庫與上課記錄 ---
+            const [studentRecords, setStudentRecords] = useState({
+                "Mina Kuo": [{ id: 1, date: "2024-05-15", progress: "Bring 系列 L1", score: "92", nextExam: "L1 單字", remarks: "發音優秀！" }],
+                "Sammy": [], "Angus Lee": [], "Peggy": [], "鈴梅": [], "信汝": []
+            });
+
             const monthDays = useMemo(() => {
                 const weeks = [];
                 const now = new Date();
@@ -160,7 +157,6 @@
                 const diffToMonday = now.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
                 const startMonday = new Date(now.setDate(diffToMonday));
                 startMonday.setHours(0, 0, 0, 0);
-
                 for (let w = 0; w < 4; w++) {
                     const days = [];
                     for (let i = 0; i < 7; i++) {
@@ -175,66 +171,70 @@
 
             const timeSlots = ["09:00 - 10:30", "10:30 - 12:00", "13:30 - 15:00", "15:00 - 16:30", "16:30 - 18:00", "19:00 - 20:30", "20:30 - 22:00"];
 
-            const handleBookingConfirm = () => {
-                if (selectedSlot) {
-                    setMyBookings([...myBookings, {
-                        id: Date.now(),
-                        date: selectedSlot.day.toDateString(),
-                        displayDate: selectedSlot.day.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric' }),
-                        slot: selectedSlot.slot,
-                        fullDate: selectedSlot.day.getTime()
-                    }]);
-                    setIsBookingModalOpen(false);
-                    setSelectedSlot(null);
-                }
-            };
-
-            const isSlotBooked = (day, slot) => myBookings.some(b => b.date === day.toDateString() && b.slot === slot);
-            const checkCanModify = (bookingTimestamp) => (bookingTimestamp - Date.now()) > (72 * 60 * 60 * 1000);
+            if (!currentUser) {
+                return (
+                    <div className="max-w-md mx-auto h-[85vh] bg-[#F2E9E4] rounded-[3rem] flex flex-col items-center justify-center p-10 text-center shadow-2xl">
+                        <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mb-6 shadow-sm"><Icon name="BookOpen" size={32} className="text-[#976666]" /></div>
+                        <h1 className="text-3xl font-serif italic text-[#22223B] mb-2">Sabrina English</h1>
+                        <p className="text-xs text-[#9A8C98] uppercase tracking-[0.2em] mb-10">小教室登入系統</p>
+                        <form onSubmit={handleLogin} className="w-full space-y-4">
+                            <input 
+                                type="email" 
+                                placeholder="請輸入您的信箱" 
+                                value={loginEmail} 
+                                onChange={(e) => setLoginEmail(e.target.value)}
+                                required 
+                            />
+                            <button type="submit" className="w-full py-4 bg-[#976666] text-white rounded-2xl font-bold tracking-widest shadow-lg">登入</button>
+                        </form>
+                        <p className="mt-8 text-[10px] text-[#C9ADA7] leading-relaxed">請使用報名時留下的 Gmail 或 Yahoo 信箱登入</p>
+                    </div>
+                );
+            }
 
             const currentWeekDays = monthDays[activeWeek];
             const currentSelectedDay = currentWeekDays[selectedDateIdx];
 
             return (
                 <div className="max-w-md mx-auto h-[85vh] min-h-[600px] bg-[#F2E9E4] relative shadow-2xl overflow-hidden rounded-[3rem] border border-[#C9ADA7]/20 flex flex-col text-[#22223B]">
-                    
-                    {/* Header - 頂部固定標題 */}
+                    {/* Header */}
                     <header className="pt-10 pb-4 px-8 flex-shrink-0 bg-[#F2E9E4] z-50">
                         <div className="flex justify-between items-start">
                             <div>
-                                <p className="text-[#9A8C98] text-[10px] tracking-[0.3em] uppercase mb-1 font-bold">
-                                    Sabrina English {role === 'teacher' && <span className="text-[#84A59D]">• 教師管理模式</span>}
+                                <p className="text-[#9A8C98] text-[10px] tracking-[0.3em] uppercase mb-1 font-bold flex items-center gap-2">
+                                    Sabrina English 
+                                    {currentUser.role === 'teacher' && <span className="text-[#84A59D] font-black">• 教師後台</span>}
                                 </p>
                                 <h1 className="text-3xl font-serif text-[#22223B] italic lowercase leading-tight">{activeTab}</h1>
                             </div>
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-sm border ${role === 'teacher' ? 'bg-[#4A4E69] text-white' : 'bg-white text-[#C9ADA7] border-[#C9ADA7]/20'}`}>
-                                <Icon name={role === 'teacher' ? "Shield" : "Coffee"} size={18} />
-                            </div>
+                            <button onClick={() => setCurrentUser(null)} className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm border bg-white text-[#C9ADA7]">
+                                <Icon name="LogOut" size={18} />
+                            </button>
                         </div>
                     </header>
 
-                    {/* Bottom Navbar 移動到上方 - 背景 #976666, 間距 gap-9, 固定在標題下方 */}
+                    {/* Nav Bar */}
                     <nav className="flex-shrink-0 bg-[#976666] px-4 py-4 flex justify-center gap-9 border-b border-white/10 rounded-b-[2rem] shadow-lg z-40 sticky top-0 text-white">
                         {[
-                            { id: 'calendar', icon: 'Calendar', label: role === 'teacher' ? '課表' : '預約' },
-                            { id: 'materials', icon: 'BookOpen', label: '教材' },
-                            { id: 'flashcards', icon: 'BookMarked', label: '單字' },
-                            { id: 'speaking', icon: 'Mic2', label: '口說' },
+                            { id: 'calendar', icon: 'Calendar', label: '預約' },
+                            { id: 'materials', icon: 'BookOpen', label: '教材', hasNotify: currentUser.role === 'student' && hasNewMaterial },
+                            { id: 'flashcards', icon: 'BookMarked', label: '單字', hasNotify: currentUser.role === 'student' && hasNewMaterial },
+                            { id: 'speaking', icon: 'Mic2', label: '口說', hasNotify: currentUser.role === 'teacher' && teacherNotifications.length > 0 },
                             { id: 'profile', icon: 'User', label: '個人' }
                         ].map(tab => (
-                            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center gap-1 transition-all ${activeTab === tab.id ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'}`}>
+                            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if(tab.id === 'materials') setHasNewMaterial(false); }} className={`relative flex flex-col items-center gap-1 transition-all ${activeTab === tab.id ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-80'}`}>
                                 <Icon name={tab.icon} size={20} className={activeTab === tab.id ? "stroke-[2.5px]" : ""} />
                                 <span className="text-[9px] font-bold uppercase tracking-tighter mt-1">{tab.label}</span>
+                                {tab.hasNotify && <div className="notification-dot" />}
                             </button>
                         ))}
                     </nav>
 
-                    {/* Main Content Area - 可捲動區域 */}
+                    {/* Main Content Area */}
                     <main className="px-6 flex-1 overflow-y-auto no-scrollbar pt-6 pb-12">
-                        
-                        {/* 1. 預約日曆 */}
+                        {/* 1. 預約 */}
                         {activeTab === 'calendar' && (
-                            <div className="space-y-6 fade-in">
+                            <div className="space-y-6 fade-in pb-8">
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
                                     {[1, 2, 3, 4].map((w, idx) => (
                                         <button key={w} onClick={() => { setActiveWeek(idx); setSelectedDateIdx(0); }} className={`px-6 py-3 rounded-2xl text-[10px] font-bold tracking-widest transition-all ${activeWeek === idx ? 'bg-[#4A4E69] text-white shadow-md' : 'bg-white text-[#9A8C98] border border-[#C9ADA7]/10'}`}>WEEK 0{w}</button>
@@ -242,153 +242,123 @@
                                 </div>
                                 <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2 px-1">
                                     {currentWeekDays.map((day, idx) => (
-                                        <button key={idx} onClick={() => setSelectedDateIdx(idx)} className={`flex-shrink-0 w-14 h-16 rounded-2xl flex flex-col items-center justify-center transition-all ${selectedDateIdx === idx ? 'bg-[#4A4E69] text-white shadow-lg translate-y-[-2px]' : 'bg-white/60 text-[#9A8C98] border border-[#C9ADA7]/10'}`}>
+                                        <button key={idx} onClick={() => setSelectedDateIdx(idx)} className={`flex-shrink-0 w-14 h-16 rounded-2xl flex flex-col items-center justify-center transition-all ${selectedDateIdx === idx ? 'bg-[#4A4E69] text-white shadow-lg' : 'bg-white/60 text-[#9A8C98] border border-[#C9ADA7]/10'}`}>
                                             <span className="text-[9px] font-bold uppercase">{day.toLocaleDateString('zh-TW', { weekday: 'short' })}</span>
                                             <span className="text-lg font-serif italic">{day.getDate()}</span>
                                         </button>
                                     ))}
                                 </div>
                                 <div className="bg-white/30 p-5 rounded-[2.5rem] border border-[#C9ADA7]/10 shadow-inner">
-                                    <p className="text-sm font-bold uppercase tracking-widest text-[#4A4E69] mb-4">{currentSelectedDay.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', weekday: 'long' })}</p>
+                                    <p className="text-sm font-bold text-[#4A4E69] mb-4">{currentSelectedDay.toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', weekday: 'long' })}</p>
                                     <div className="grid grid-cols-1 gap-3">
-                                        {timeSlots.map(slot => {
-                                            const booked = isSlotBooked(currentSelectedDay, slot);
-                                            return (
-                                                <button key={slot} onClick={() => { if(!booked && role !== 'teacher') { setSelectedSlot({day: currentSelectedDay, slot}); setIsBookingModalOpen(true); } }} className={`p-4 rounded-2xl border flex justify-between items-center transition-all ${booked ? 'bg-[#84A59D] border-[#84A59D] text-white shadow-sm' : 'bg-white border-[#C9ADA7]/10 text-[#4A4E69] hover:border-[#4A4E69]'}`}>
-                                                    <span className="text-sm font-medium">{slot}</span>
-                                                    <span className="text-[10px] font-bold uppercase opacity-60">{booked ? 'Reserved' : 'Book'}</span>
-                                                </button>
-                                            );
-                                        })}
+                                        {timeSlots.map(slot => (
+                                            <button key={slot} onClick={() => { if(currentUser.role !== 'teacher') { setSelectedSlot({day: currentSelectedDay, slot}); setIsBookingModalOpen(true); } }} className="p-4 rounded-2xl border flex justify-between items-center bg-white border-[#C9ADA7]/10 text-[#4A4E69] hover:border-[#4A4E69]">
+                                                <span className="text-sm font-medium">{slot}</span>
+                                                <span className="text-[10px] font-bold opacity-60">可預約</span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* 2. 教材內容 */}
+                        {/* 2. 教材 */}
                         {activeTab === 'materials' && (
-                            <div className="space-y-6 fade-in">
+                            <div className="space-y-6 fade-in pb-8">
                                 <div className="flex justify-between items-center">
-                                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#9A8C98]">課程教材內容</h3>
-                                    {role === 'teacher' && (
-                                        <button onClick={() => setIsUpdatingContent('material')} className="bg-[#4A4E69] text-white px-4 py-2 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-md">
-                                            <Icon name="Plus" size={14} /> 上傳教材
-                                        </button>
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#9A8C98]">專屬教材清單</h3>
+                                    {currentUser.role === 'teacher' && (
+                                        <button onClick={() => setIsUpdatingContent('material')} className="bg-[#4A4E69] text-white px-4 py-2 rounded-full text-[10px] font-bold shadow-md">＋上傳教材</button>
                                     )}
                                 </div>
-                                {materialData.map((item, idx) => (
-                                    <div key={idx} className="bg-white rounded-[2.5rem] border border-[#C9ADA7]/20 p-8 shadow-sm">
-                                        <h4 className="text-2xl font-serif text-[#4A4E69] leading-tight mb-2 italic">{item.term}</h4>
-                                        <p className="text-lg font-serif text-[#84A59D] mb-6">{item.meaning}</p>
-                                        <div className="bg-[#F2E9E4]/50 p-6 rounded-2xl border border-[#C9ADA7]/10">
-                                            <p className="text-sm leading-relaxed text-[#22223B] whitespace-pre-line italic">{item.dialog}</p>
-                                        </div>
+                                <div className="bg-white rounded-[2.5rem] border border-[#C9ADA7]/20 p-8 shadow-sm">
+                                    <h4 className="text-2xl font-serif text-[#4A4E69] italic mb-2">bring down the house</h4>
+                                    <p className="text-lg font-serif text-[#84A59D] mb-6">贏得全場喝采</p>
+                                    <div className="bg-[#F2E9E4]/50 p-6 rounded-2xl text-sm italic leading-relaxed text-[#22223B]">
+                                        A: How was her performance?<br/>B: Amazing. She completely brought down the house.
                                     </div>
-                                ))}
+                                </div>
                             </div>
                         )}
 
-                        {/* 3. 單字複習 */}
+                        {/* 3. 單字卡 */}
                         {activeTab === 'flashcards' && (
-                            <div className="space-y-8 py-10 fade-in flex flex-col items-center text-center">
+                            <div className="space-y-8 py-10 fade-in flex flex-col items-center">
                                 <div className="w-full flex justify-between items-center px-4">
-                                    <p className="text-xs font-bold tracking-[0.2em] text-[#9A8C98] uppercase">Vocabulary Card ({cardIdx + 1}/{flashcards.length})</p>
-                                    {role === 'teacher' && (
+                                    <p className="text-[10px] font-bold text-[#9A8C98] uppercase tracking-widest">Vocabulary card</p>
+                                    {currentUser.role === 'teacher' && (
                                         <button onClick={() => setIsUpdatingContent('flashcard')} className="bg-[#4A4E69] text-white p-2 rounded-full shadow-md"><Icon name="Plus" size={16} /></button>
                                     )}
                                 </div>
                                 <div className="card-container w-full h-[320px]" onClick={() => setIsFlipped(!isFlipped)}>
                                     <div className={`card-inner ${isFlipped ? 'is-flipped' : ''}`}>
-                                        <div className="card-face bg-white shadow-xl border-2 border-[#C9ADA7]/30 p-10">
-                                            <h2 className="text-4xl font-serif italic text-[#22223B] px-4">{flashcards[cardIdx]?.en}</h2>
-                                            <p className="mt-12 text-[10px] text-[#C9ADA7] uppercase tracking-widest">Tap to flip</p>
+                                        <div className="card-face bg-white shadow-xl border-2 border-[#C9ADA7]/30 p-10 text-center">
+                                            <h2 className="text-4xl font-serif italic text-[#22223B]">Aesthetic</h2>
+                                            <p className="mt-12 text-[10px] text-[#C9ADA7] uppercase tracking-widest">點擊翻面</p>
                                         </div>
-                                        <div className="card-face card-back bg-[#4A4E69] text-white p-10 shadow-xl">
-                                            <p className="text-3xl font-serif italic">{flashcards[cardIdx]?.cn}</p>
+                                        <div className="card-face card-back bg-[#4A4E69] text-white p-10 text-center">
+                                            <p className="text-2xl font-serif">美學的、審美的</p>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex gap-8">
-                                    <button onClick={() => { setIsFlipped(false); setCardIdx(prev => prev > 0 ? prev - 1 : flashcards.length - 1); }} className="w-14 h-14 rounded-full border border-[#C9ADA7] flex items-center justify-center text-[#9A8C98] hover:bg-[#C9ADA7] hover:text-white transition-all"><Icon name="ArrowLeft"/></button>
-                                    <button onClick={() => { setIsFlipped(false); setCardIdx(prev => prev < flashcards.length - 1 ? prev + 1 : 0); }} className="w-14 h-14 rounded-full bg-[#C9ADA7] flex items-center justify-center text-white shadow-md hover:scale-110 transition-all"><Icon name="ArrowRight"/></button>
                                 </div>
                             </div>
                         )}
 
-                        {/* 4. 口說挑戰 */}
+                        {/* 4. 口說 */}
                         {activeTab === 'speaking' && (
-                            <div className="space-y-6 fade-in py-6 text-center">
-                                {role === 'student' ? (
-                                    <div className="bg-white rounded-[3rem] p-8 shadow-sm border border-[#C9ADA7]/20">
+                            <div className="space-y-6 fade-in py-6 pb-8">
+                                {currentUser.role === 'student' ? (
+                                    <div className="bg-white rounded-[3rem] p-8 shadow-sm border border-[#C9ADA7]/20 text-center">
                                         <Icon name="Mic2" size={40} className="text-[#C9ADA7] mx-auto mb-4" />
-                                        <h3 className="text-2xl font-serif italic mb-6 text-[#22223B]">每週挑戰：職涯規劃</h3>
-                                        <button onClick={() => setIsRecording(!isRecording)} className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center transition-all ${isRecording ? 'bg-red-400 animate-pulse' : 'bg-[#F2E9E4]'}`}>
-                                            <div className={`rounded-full ${isRecording ? 'w-4 h-4 bg-white' : 'w-10 h-10 bg-white'}`}></div>
+                                        <h3 className="text-xl font-serif italic mb-6">每週挑戰：自我介紹</h3>
+                                        <button onClick={() => { if(!isRecording) setIsRecording(true); else handleRecordFinish(); }} className={`w-16 h-16 rounded-full mx-auto flex items-center justify-center transition-all ${isRecording ? 'bg-red-400 animate-pulse' : 'bg-[#F2E9E4]'}`}>
+                                            <div className={`rounded-full ${isRecording ? 'w-4 h-4 bg-white' : 'w-10 h-10 bg-white shadow-md'}`}></div>
                                         </button>
-                                        <p className="mt-8 text-[10px] font-bold text-[#9A8C98] uppercase tracking-widest">{isRecording ? 'Recording...' : 'Tap to Start'}</p>
+                                        <p className="mt-8 text-[10px] font-bold text-[#9A8C98] uppercase">{isRecording ? '錄音中...點擊停止' : '點擊開始錄製'}</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4 text-left">
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#9A8C98]">學生作業清單</h3>
-                                        {['小明', '王大同', 'Cindy'].map(name => (
-                                            <div key={name} className="bg-white p-6 rounded-3xl border border-[#C9ADA7]/20 flex justify-between items-center shadow-sm">
-                                                <div>
-                                                    <p className="font-bold text-[#22223B]">{name}</p>
-                                                    <p className="text-[10px] text-[#9A8C98]">提交時間: 2024-05-20</p>
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold uppercase text-[#9A8C98] tracking-widest flex justify-between">作業通知 {teacherNotifications.length > 0 && <span className="bg-red-500 text-white px-2 py-0.5 rounded-full text-[8px]">{teacherNotifications.length}</span>}</h3>
+                                        {teacherNotifications.length === 0 ? (
+                                            <p className="text-xs text-[#9A8C98] italic p-10 text-center">目前沒有新作業繳交紀錄</p>
+                                        ) : (
+                                            teacherNotifications.map(n => (
+                                                <div key={n.id} className="bg-white p-6 rounded-3xl border border-[#C9ADA7]/20 flex justify-between items-center shadow-sm">
+                                                    <p className="text-xs font-bold">{n.msg}</p>
+                                                    <button onClick={() => setTeacherNotifications(teacherNotifications.filter(x => x.id !== n.id))} className="text-[#84A59D] text-[10px] font-black uppercase">批改完成</button>
                                                 </div>
-                                                <button className="bg-[#84A59D] text-white px-4 py-2 rounded-xl text-[10px] font-bold uppercase shadow-sm">批改</button>
-                                            </div>
-                                        ))}
+                                            ))
+                                        )}
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {/* 5. 個人與上課記錄 */}
+                        {/* 5. 個人與記錄 */}
                         {activeTab === 'profile' && (
-                            <div className="space-y-8 fade-in">
+                            <div className="space-y-8 fade-in pb-8">
                                 <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-[#C9ADA7]/20 flex flex-col items-center text-center">
-                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-serif italic mb-4 ${role === 'teacher' ? 'bg-[#4A4E69]' : 'bg-[#C9ADA7]'}`}>S</div>
-                                    <h2 className="text-xl font-serif text-[#22223B]">Sabrina 學生</h2>
-                                    <button onClick={() => setRole(role === 'student' ? 'teacher' : 'student')} className="mt-4 px-6 py-2 bg-[#4A4E69] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md">切換角色</button>
+                                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-3xl font-serif italic mb-4 bg-[#C9ADA7]`}>{currentUser.name[0]}</div>
+                                    <h2 className="text-xl font-serif text-[#22223B]">{currentUser.name}</h2>
+                                    <p className="text-[10px] text-[#9A8C98] font-bold uppercase tracking-widest">{currentUser.email}</p>
                                 </div>
 
                                 <div className="space-y-4">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#9A8C98] flex items-center gap-2">
-                                            <Icon name="History" size={14} /> 上課記錄與進度
-                                        </h3>
-                                        {role === 'teacher' && (
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-xs font-bold uppercase tracking-widest text-[#9A8C98]">上課記錄與進度</h3>
+                                        {currentUser.role === 'teacher' && (
                                             <button onClick={() => setIsAddingRecord(true)} className="text-[#84A59D] text-[10px] font-black underline uppercase">新增進度</button>
                                         )}
                                     </div>
                                     
-                                    {classRecords.map(rec => (
+                                    {(currentUser.role === 'teacher' ? studentRecords["Mina Kuo"] : (studentRecords[currentUser.name] || [])).map(rec => (
                                         <div key={rec.id} className="bg-white p-6 rounded-3xl border border-[#C9ADA7]/20 shadow-sm space-y-4">
-                                            <div className="flex justify-between items-start border-b border-gray-50 pb-4">
-                                                <div>
-                                                    <p className="text-[10px] font-bold text-[#4A4E69] uppercase tracking-wider">{rec.date}</p>
-                                                    <p className="text-lg font-serif italic text-[#9A8C98]">{rec.time}</p>
-                                                </div>
-                                                <div className="text-center bg-[#F2E9E4] px-4 py-2 rounded-2xl">
-                                                    <p className="text-[8px] font-bold text-[#9A8C98] uppercase mb-1">小考</p>
-                                                    <p className="text-2xl font-serif text-[#84A59D] leading-none">{rec.score}</p>
-                                                </div>
+                                            <div className="flex justify-between border-b pb-4">
+                                                <div><p className="text-[10px] font-bold text-[#4A4E69]">{rec.date}</p><p className="text-lg font-serif italic text-[#9A8C98]">{rec.progress}</p></div>
+                                                <div className="text-center bg-[#F2E9E4] px-4 py-2 rounded-2xl"><p className="text-[8px] font-bold">小考</p><p className="text-2xl font-serif text-[#84A59D]">{rec.score}</p></div>
                                             </div>
-                                            <div className="grid grid-cols-1 gap-4 text-sm">
-                                                <div>
-                                                    <p className="font-bold text-[#9A8C98] uppercase text-[9px] mb-1 tracking-widest">進度</p>
-                                                    <p className="text-[#22223B] font-medium">{rec.progress}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-[#9A8C98] uppercase text-[9px] mb-1 tracking-widest">下次考試範圍</p>
-                                                    <p className="text-[#976666] font-bold underline">{rec.nextExam}</p>
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-[#9A8C98] uppercase text-[9px] mb-1 tracking-widest">老師備註</p>
-                                                    <p className="text-[#4A4E69] leading-relaxed italic text-xs bg-gray-50 p-3 rounded-xl">"{rec.remarks}"</p>
-                                                </div>
-                                            </div>
+                                            <p className="text-xs text-[#22223B] font-medium leading-relaxed italic">"{rec.remarks}"</p>
+                                            <div className="bg-gray-50 p-3 rounded-xl"><p className="text-[9px] font-bold text-[#9A8C98]">下次考試範圍: <span className="text-[#976666]">{rec.nextExam}</span></p></div>
                                         </div>
                                     ))}
                                 </div>
@@ -396,47 +366,38 @@
                         )}
                     </main>
 
-                    {/* Modals --- */}
+                    {/* 教師功能彈窗 */}
                     <AnimatePresence>
-                        {isBookingModalOpen && (
-                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-end justify-center p-4">
-                                <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-md rounded-t-[3rem] p-10 text-center shadow-2xl">
-                                    <div className="w-12 h-1 bg-[#F2E9E4] rounded-full mx-auto mb-8"></div>
-                                    <h2 className="text-3xl font-serif text-[#22223B] mb-2 leading-tight">確認預約嗎？</h2>
-                                    <p className="text-lg text-[#9A8C98] mb-8 italic">{selectedSlot?.day.toLocaleDateString()} {selectedSlot?.slot}</p>
-                                    <button onClick={handleBookingConfirm} className="w-full bg-[#4A4E69] text-white py-4 rounded-2xl font-bold tracking-widest shadow-lg mb-4 text-sm">確認預約</button>
-                                    <button onClick={() => { setIsBookingModalOpen(false); setSelectedSlot(null); }} className="w-full text-[#9A8C98] font-bold py-2 text-xs uppercase">取消</button>
-                                </motion.div>
-                            </div>
-                        )}
-
                         {isAddingRecord && (
                             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white w-full max-w-md rounded-[3rem] p-8 shadow-2xl overflow-y-auto max-h-[85vh] border border-[#C9ADA7]/20">
-                                    <h2 className="text-2xl font-serif mb-6 text-[#22223B]">填寫上課進度</h2>
+                                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] p-8 shadow-2xl">
+                                    <h2 className="text-xl font-serif mb-6">新增上課進度</h2>
                                     <div className="space-y-4">
-                                        <input type="text" placeholder="上課進度 (例如: Bring 系列 L2)" />
-                                        <input type="number" placeholder="小考成績 (0-100)" />
+                                        <select>
+                                            <option>Mina Kuo</option><option>Sammy</option><option>Angus Lee</option>
+                                            <option>Peggy</option><option>鈴梅</option><option>信汝</option>
+                                        </select>
+                                        <input type="text" placeholder="上課進度 (例如: Bring L2)" />
+                                        <input type="number" placeholder="小考成績" />
                                         <input type="text" placeholder="下次考試範圍" />
-                                        <textarea rows="3" placeholder="學生表現備註..."></textarea>
-                                        <div className="flex gap-3 pt-4">
-                                            <button onClick={() => setIsAddingRecord(false)} className="flex-1 py-4 text-[#9A8C98] font-bold border border-[#C9ADA7]/20 rounded-2xl">取消</button>
-                                            <button onClick={() => setIsAddingRecord(false)} className="flex-1 py-4 bg-[#976666] text-white font-bold rounded-2xl shadow-md">儲存</button>
+                                        <textarea rows="3" placeholder="老師備註..."></textarea>
+                                        <div className="flex gap-3">
+                                            <button onClick={() => setIsAddingRecord(false)} className="flex-1 py-3 text-[#9A8C98] border rounded-xl">取消</button>
+                                            <button onClick={() => setIsAddingRecord(false)} className="flex-1 py-3 bg-[#976666] text-white rounded-xl shadow-md">儲存</button>
                                         </div>
                                     </div>
                                 </motion.div>
                             </div>
                         )}
-
                         {isUpdatingContent && (
                             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
-                                <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] p-8 shadow-2xl">
-                                    <h2 className="text-xl font-serif mb-6 text-[#22223B]">新增課程內容</h2>
+                                <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white w-full max-w-sm rounded-[3rem] p-8 shadow-2xl text-center">
+                                    <h2 className="text-xl font-serif mb-6 italic">更新課程資料</h2>
                                     <div className="space-y-4">
-                                        <input type="text" placeholder={isUpdatingContent === 'material' ? "輸入片語" : "輸入單字"} />
-                                        <textarea rows="4" placeholder="詳細內容"></textarea>
-                                        <button onClick={() => setIsUpdatingContent(null)} className="w-full py-4 bg-[#4A4E69] text-white font-bold rounded-2xl shadow-lg mt-4">確認</button>
-                                        <button onClick={() => setIsUpdatingContent(null)} className="w-full py-2 text-[#9A8C98] font-bold text-xs">取消</button>
+                                        <input type="text" placeholder="輸入內容..." />
+                                        <textarea rows="4" placeholder="詳細釋義與例句..."></textarea>
+                                        <button onClick={handleUploadConfirm} className="w-full py-4 bg-[#4A4E69] text-white rounded-2xl font-bold shadow-lg">確認並發布通知</button>
+                                        <button onClick={() => setIsUpdatingContent(null)} className="text-[#9A8C98] text-xs py-2">取消</button>
                                     </div>
                                 </motion.div>
                             </div>
